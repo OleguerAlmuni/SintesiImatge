@@ -24,46 +24,46 @@ static const int tree_depth = 1;		// Number of recursions to compute indirect il
 // to handle shadows and reflections.
 Color Raytracer::Shade(const HitInfo& hit, const Scene& scene, int max_tree_depth)
 {
-    Color finalColor;
     Color directColor;
 
-    Color radiance = scene.bgcolor;
-
-    Vec3 objectPoint = hit.geom.point;
+    
 
     for (PointLight light : scene.light) {
-        // PHONG
-
-        Vec3 N = hit.geom.normal;
         Vec3 L = Unit(light.position - hit.geom.point);
+        Vec3 N = hit.geom.normal;
+        Vec3 V = Unit(hit.geom.origin - hit.geom.point);
+        Vec3 R = Unit(2.0f * (N * L) * N - L);
 
-        float NdotL = N * L;
+        // ----- SHADOW CHECK ----- //
 
-        if (NdotL < 0) {
-            NdotL = 0;
+        Ray shadow_ray;
+        shadow_ray.origin = hit.geom.point + (hit.geom.normal * Epsilon);
+        shadow_ray.direction = L;
+
+        HitInfo shadow_hit;
+        if (Cast(shadow_ray, scene, shadow_hit) && shadow_hit.geom.distance < Length(light.position - hit.geom.point)) {
+            continue;
         }
 
+        // ----- DIFFUSE ----- //
+
+        float NdotL = max(0.0, N * L);
         Color diffuse = hit.material.diffuse * NdotL * light.color;
 
-        Vec3 R = Reflection(light.position, hit.geom.normal);
-        Vec3 V = Unit(hit.geom.origin - hit.geom.point);
+        // ----- SPECULAR ----- //
 
-        float RdotV = (R * V);
-        RdotV = pow(RdotV, hit.material.phong_exp);
+        float RdotV = max(0.0, R * V);
+        Color specular = hit.material.specular * pow(RdotV, hit.material.phong_exp) * light.color;
 
-        if (RdotV < 0) {
-            RdotV = 0;
-        }
-
-        Color specular = hit.material.specular * RdotV * light.color;
-
-        directColor += diffuse;
-        directColor += specular;
+        directColor += diffuse + specular;
     }
 
-    finalColor += directColor;
+    // ----- AMBIENT ----- //
 
-    return finalColor;
+    Color ambient = hit.material.diffuse * scene.ambient;
+    directColor += ambient;
+
+    return directColor;
 }
 
 
