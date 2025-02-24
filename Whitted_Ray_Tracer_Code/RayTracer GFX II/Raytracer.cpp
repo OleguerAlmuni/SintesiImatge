@@ -26,8 +26,6 @@ Color Raytracer::Shade(const HitInfo& hit, const Scene& scene, int max_tree_dept
 {
     Color directColor;
 
-    
-
     for (PointLight light : scene.light) {
         Vec3 L = Unit(light.position - hit.geom.point);
         Vec3 N = hit.geom.normal;
@@ -41,7 +39,8 @@ Color Raytracer::Shade(const HitInfo& hit, const Scene& scene, int max_tree_dept
         shadow_ray.direction = L;
 
         HitInfo shadow_hit;
-        if (Cast(shadow_ray, scene, shadow_hit) && shadow_hit.geom.distance < Length(light.position - hit.geom.point)) {
+        shadow_hit.geom.distance = dist(light.position, hit.geom.point);
+        if (Cast(shadow_ray, scene, shadow_hit)) {
             continue;
         }
 

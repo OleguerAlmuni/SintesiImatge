@@ -96,9 +96,48 @@ Box3 Triangle::GetBounds() const // Return pre-computed box.
 bool Triangle::Intersect( const Ray &ray, HitGeom &hitgeom ) const
     {
 
-	// YOUR CODE HERE
+	float u, v, w, t;
 
+	Vec3 p = ray.origin;
+	Vec3 q = ray.origin + ray.direction * hitgeom.distance;
 
-	return false;
+	Vec3 ab = B - A;
+	Vec3 ac = C - A;
+	Vec3 qp = p - q;
+
+	// Compute triangle normal
+	Vec3 n = ab ^ ac;
+
+	// Compute denominator d. If d <= 0, segment is parallel to or points away
+	float d = qp * n;
+	if (d <= 0.0f) return false;
+
+	// Compute intersection t value of pq with plane of triangle.
+	Vec3 ap = ray.origin - A;
+	t = ap * n;
+	if (t < 0.0f) return 0;
+	if (t > d) return 0;
+
+	// Compute barycentric coordinate components and test if within bounds
+	Vec3 e = qp ^ ap;
+	v = ac * e;
+	if (v < 0.0f || v > d) return false;
+	w = -(ab * e);
+	if (w < 0.0 || v + w > d) return false;
+
+	float ood = 1.0f / d;
+	t *= ood;
+	v *= ood;
+	w *= ood;
+	u = 1.0f - v - w;
+
+	Vec3 intersection = u * A + v * B + w * C;
+
+	hitgeom.distance = dist(intersection, ray.origin);
+	hitgeom.point = intersection;
+	hitgeom.normal = Unit(n);
+	hitgeom.origin = ray.origin;	
+
+	return true;
 	}
 
