@@ -13,7 +13,7 @@
 
 // Programmed by (names): 
 
-static const int tree_depth = 1;		// Number of recursions to compute indirect illumination
+static const int tree_depth = 5;		// Number of recursions to compute indirect illumination
 
 #include "Raytracer.h"
 
@@ -25,6 +25,7 @@ static const int tree_depth = 1;		// Number of recursions to compute indirect il
 Color Raytracer::Shade(const HitInfo& hit, const Scene& scene, int max_tree_depth)
 {
     Color directColor;
+    Color finalColor;
 
     for (PointLight light : scene.light) {
         Vec3 L = Unit(light.position - hit.geom.point);
@@ -60,9 +61,30 @@ Color Raytracer::Shade(const HitInfo& hit, const Scene& scene, int max_tree_dept
     // ----- AMBIENT ----- //
 
     Color ambient = hit.material.diffuse * scene.ambient;
-    directColor += ambient;
+    finalColor = directColor + ambient;
 
-    return directColor;
+    // ----- REFLECTION ----- //
+    if (hit.material.reflectivity > 0.0f && max_tree_depth > 0) {
+        Ray reflectedRay;
+        reflectedRay.origin = hit.geom.point + hit.geom.normal * Epsilon;
+        reflectedRay.direction = Reflection(Unit(hit.geom.origin - hit.geom.point), hit.geom.normal);
+
+        Color reflectionColor = Trace(reflectedRay, scene, max_tree_depth - 1);
+        finalColor = finalColor * (1.0f - hit.material.reflectivity) + reflectionColor * hit.material.reflectivity ;
+    }
+
+    // ----- REFRACTION ----- //
+
+    if (hit.material.opacity < 1.0 && hit.material.refractive_index > 0) {
+        Ray refractedRay;
+        refractedRay.origin = hit.geom.point - (hit.geom.normal * Epsilon);
+        refractedRay.direction = Refraction(Unit(hit.geom.point - hit.geom.origin), hit.geom.normal, hit.material.refractive_index);
+
+        Color refractionColor = Trace(refractedRay, scene, max_tree_depth - 1);
+        finalColor = finalColor * hit.material.opacity + refractionColor * (1.0 - hit.material.opacity);
+    }
+
+    return finalColor;
 }
 
 
